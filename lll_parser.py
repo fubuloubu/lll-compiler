@@ -4,6 +4,11 @@ from lll_ast import NODES
 from lll_lexer import Lexer, tokenize
 
 
+# NOTE: Dummy function, to get `@_` to stop complaining
+def _(fn, *args):
+    raise
+
+
 class Parser(_Parser):
 
     # NOTE: Uncomment if you want to see the parse table
@@ -27,8 +32,10 @@ class Parser(_Parser):
     def args(self, p):
         assert len(p.args) <= 1
         args = [p[0]]
-        if len(p.args) == 1:
+        if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
             args.extend(p.args[0])
+        else:
+            assert len(p.args) == 0, "Should never happen"
         return tuple(args)
 
     @_("NAME { args }")
@@ -36,8 +43,10 @@ class Parser(_Parser):
         assert len(p.args) <= 1
         # NOTE: Handle NullOp nodes (assume NAME otherwise)
         args = [NODES[p.NAME]() if p.NAME in NODES else p.NAME]
-        if len(p.args) == 1:
+        if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
             args.extend(p.args[0])
+        else:
+            assert len(p.args) == 0, "Should never happen"
         return tuple(args)
 
 

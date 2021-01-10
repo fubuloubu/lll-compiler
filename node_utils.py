@@ -61,9 +61,7 @@ class BaseVisitor(Generic[FnType, Context]):
                 raise CompilerError(f"'{node_class}' already registered")
 
             if not issubclass(node_class, self._node_base_class):
-                raise CompilerError(
-                    f"'{node_class.__name__}' is not a " f"'{self.node_class_name}'"
-                )
+                raise CompilerError(f"'{node_class.__name__}' is not a '{self.node_class_name}'")
 
             else:
                 self._functions[node_class] = function
@@ -74,18 +72,16 @@ class BaseVisitor(Generic[FnType, Context]):
 class NodeVisitor(BaseVisitor[VisitFn, Context]):
     """
     Visitor Generic class:
-        visit and view nodes in a tree-like structure of `NodeClass`
+        visit and view nodes in a tree-like structure of 'NodeClass'
 
-        functions must be pure, taking `NodeClass` as input and return nothing
+        functions must be pure, taking 'NodeClass' as input and return nothing
     """
 
     def visit(self, node: BaseNode, context: Optional[Context] = None):
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
-            raise CompilerError(
-                f"`{node_class.__name__}` is not a `{self.node_class_name}`"
-            )
+            raise CompilerError(f"'{node_class.__name__}' is not a '{self.node_class_name}'")
 
         elif node.__class__ in self._functions.keys():
             self._functions[node_class](node, context)
@@ -113,29 +109,23 @@ class NodeVisitor(BaseVisitor[VisitFn, Context]):
                 self.visit(value, context)
 
             else:
-                raise CompilerError(
-                    f"'{attr}' of {node} is not a list or {self.node_class_name}"
-                )
+                raise CompilerError(f"'{attr}' of {node} is not a list or {self.node_class_name}")
 
 
 class NodeMutator(BaseVisitor[MutateFn, Context]):
     """
     Mutating Visitor Generic class:
-        visit and modify nodes in a tree-like structure of `NodeClass`
+        visit and modify nodes in a tree-like structure of 'NodeClass'
 
-        functions must be pure, taking `NodeClass` as input
+        functions must be pure, taking 'NodeClass' as input
         and return it with any necessary modifications
     """
 
-    def update(
-        self, node: BaseNode, context: Optional[Context] = None
-    ) -> Union[BaseNode, None]:
+    def update(self, node: BaseNode, context: Optional[Context] = None) -> Union[BaseNode, None]:
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
-            raise CompilerError(
-                f"`{node_class.__name__}` is not a `{self.node_class_name}`"
-            )
+            raise CompilerError(f"'{node_class.__name__}' is not a '{self.node_class_name}'")
 
         elif node.__class__ in self._functions.keys():
             return self._functions[node_class](node, context)
@@ -192,34 +182,26 @@ class NodeMutator(BaseVisitor[MutateFn, Context]):
                     )
 
             else:
-                raise CompilerError(
-                    f"'{attr}' of {node} is not a list or {self.node_class_name}"
-                )
+                raise CompilerError(f"'{attr}' of {node} is not a list or {self.node_class_name}")
 
         return node
 
 
-class NodeTransformer(
-    BaseVisitor[TransformFn, Context], Generic[FnType, ReturnType, Context]
-):
+class NodeTransformer(BaseVisitor[TransformFn, Context], Generic[FnType, ReturnType, Context]):
     """
     Transformer Generic class:
-        visit and transform nodes in a tree-like structure of `NodeClass`
+        visit and transform nodes in a tree-like structure of 'NodeClass'
 
-        functions must be pure, with `NodeClass` as input and `ReturnType` as output
+        functions must be pure, with 'NodeClass' as input and 'ReturnType' as output
 
         There is no default (all nodes in tree must have transforms)
     """
 
-    def transform(
-        self, node: BaseNode, context: Optional[Context] = None
-    ) -> ReturnType:
+    def transform(self, node: BaseNode, context: Optional[Context] = None) -> ReturnType:
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
-            raise CompilerError(
-                f"`{node_class.__name__}` is not a `{self.node_class_name}`"
-            )
+            raise CompilerError(f"'{node_class.__name__}' is not a '{self.node_class_name}'")
 
         elif node.__class__ in self._functions.keys():
             return self._functions[node_class](node, context)

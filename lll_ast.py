@@ -1,267 +1,424 @@
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Union
 
 import inspect
 import sys
 
+from node_utils import BaseNode, node_type
 
-class LLLNode:
-    attrs: Tuple = ()
-    # NOTE: Cannot use both optional and unbounded
-    optional: Tuple = ()
-    unbounded: bool = False
 
-    @property
-    def node_type(self):
-        return self.__class__.__name__.lower()
+@node_type
+class LLLNode(BaseNode):
+    def __str__(self):
+        node_type = self.node_type.lower()
 
-    def __init__(self, *args):
-        if not self.unbounded and (
-            # Less than the number of required args
-            len(self.attrs) < len(args)
-            # Greater than the number of total args
-            or len(args) > len(self.attrs) + len(self.optional)
-        ):
-            raise TypeError(f"Wrong args for '{repr(self)}': {args}")
+        def stringify_value(v):
+            if isinstance(v, list):
+                return " ".join(str(i) for i in v)
+            else:
+                return str(v)
 
-        for attr, value in zip(self.attrs + self.optional, args):
-            setattr(self, attr, value)
+        attrs = " ".join(stringify_value(v) for _, v in self.iter_attributes())
+        return f"({node_type} {attrs})" if attrs else node_type
 
-        if self.unbounded:
-            setattr(
-                self,
-                self.attrs[-1],
-                # Add the rest of the arguments
-                tuple([getattr(self, self.attrs[-1])] + list(args[len(self.attrs) :])),
-            )
 
-    def __repr__(self):
-        args = " ".join(
-            ["~" + a for a in self.attrs]  # ~arg
-            + ["[" + a + "]" for a in self.optional]  # [optional]
-        )
-        return (
-            f"({self.node_type} {args})"
-            if len(args) > 1  # Will be empty string if no req'd or opt args
-            else self.node_type  # NullOp
-        )
+@node_type
+class Num(LLLNode):
+    value: int
 
     def __str__(self):
-        attrs = [str(getattr(self, attr)) for attr in self.attrs]
-        for attr in self.optional:
-            if hasattr(self, attr):
-                attrs.append(getattr(self, attr))
-        return (
-            f"({self.node_type} {' '.join(attrs)})"
-            if len(self.attrs) > 1
-            else self.node_type
-        )
+        return str(self.value)
 
 
+@node_type
+class Var(LLLNode):
+    name: str
+
+    def __str__(self):
+        return self.name
+
+
+Value = Union[Num, Var, LLLNode]
+
+
+@node_type
 class Call(LLLNode):
-    attrs = (
-        "gas_limit",
-        "address",
-        "value",
-        "args_offset",
-        "args_length",
-        "return_offset",
-        "return_length",
-    )
+    gas_limit: Value
+    address: Value
+    value: Value
+    args_offset: Value
+    args_length: Value
+    return_offset: Value
+    return_length: Value
 
 
+@node_type
+class StaticCall(LLLNode):
+    gas_limit: Value
+    address: Value
+    args_offset: Value
+    args_length: Value
+    return_offset: Value
+    return_length: Value
+
+
+@node_type
+class Set(LLLNode):
+    statements: List[LLLNode] = None
+
+
+@node_type
 class Seq(LLLNode):
-    attrs = ("statements",)
-    unbounded = True
+    statements: List[LLLNode] = None
 
 
-class Seq_Unchecked(LLLNode):
-    attrs = ("statements",)
-    unbounded = True
+# NOTE: This node is sometimes present, it's an alias
+# TODO: Delete this node
+@node_type
+class Lll(Seq):
+    pass
 
 
+# NOTE: This node is sometimes present, it's an alias
+# TODO: Delete this node
+@node_type
+class Seq_Unchecked(Seq):
+    pass
+
+
+@node_type
 class With(LLLNode):
-    attrs = ("name", "value", "statement")
+    variable: Var
+    value: Value
+    statement: Value
 
 
+@node_type
+class Return(LLLNode):
+    pointer: Value
+    length: Value
+
+
+@node_type
+class Revert(LLLNode):
+    pointer: Value
+    length: Value
+
+
+@node_type
 class If(LLLNode):
-    attrs = ("condition", "positive")
-    optional = ("negative",)
+    condition: Value
+    true: Value
+    false: Optional[Value] = None
 
 
-class _NullOp(LLLNode):
+@node_type
+class Caller(LLLNode):
     pass
 
 
-class Caller(_NullOp):
+@node_type
+class Pass(LLLNode):
     pass
 
 
-class Pass(_NullOp):
+@node_type
+class Stop(LLLNode):
     pass
 
 
-class Stop(_NullOp):
+@node_type
+class Gas(LLLNode):
     pass
 
 
-class Gas(_NullOp):
+@node_type
+class CodeSize(LLLNode):
     pass
 
 
-class CodeSize(_NullOp):
+@node_type
+class CalldataSize(LLLNode):
     pass
 
 
-class CalldataSize(_NullOp):
+@node_type
+class ReturndataSize(LLLNode):
     pass
 
 
-class ReturndataSize(_NullOp):
-    pass
-
-
+@node_type
 class _UnaryOp(LLLNode):
-    attrs = ("input",)
+    operand: Value
 
 
+@node_type
 class Not(_UnaryOp):
     pass
 
 
+@node_type
+class Clamp_NonZero(_UnaryOp):
+    pass
+
+
+@node_type
 class IsZero(_UnaryOp):
     pass
 
 
+@node_type
+class Ceil32(_UnaryOp):
+    pass
+
+
+@node_type
+class ExtCodeSize(_UnaryOp):
+    pass
+
+
+@node_type
+class ExtCodeHash(_UnaryOp):
+    pass
+
+
+@node_type
+class SelfDestruct(_UnaryOp):
+    pass
+
+
+@node_type
 class _BinOp(LLLNode):
-    attrs = ("lhs", "rhs")
+    lhs: Value
+    rhs: Value
 
 
+@node_type
 class Eq(_BinOp):
     pass
 
 
+@node_type
 class Ne(_BinOp):
     pass
 
 
+@node_type
 class Ge(_BinOp):
     pass
 
 
+@node_type
+class Sge(_BinOp):
+    pass
+
+
+@node_type
 class Gt(_BinOp):
     pass
 
 
+@node_type
 class Le(_BinOp):
     pass
 
 
+@node_type
 class Lt(_BinOp):
     pass
 
 
+@node_type
 class Slt(_BinOp):
     pass
 
 
+@node_type
+class Sgt(_BinOp):
+    pass
+
+
+@node_type
+class UClampLt(_BinOp):
+    pass
+
+
+@node_type
 class Or(_BinOp):
     pass
 
 
+@node_type
 class And(_BinOp):
     pass
 
 
+@node_type
 class Xor(_BinOp):
     pass
 
 
+@node_type
 class Add(_BinOp):
     pass
 
 
+@node_type
 class Sub(_BinOp):
     pass
 
 
+@node_type
 class Mul(_BinOp):
     pass
 
 
+@node_type
 class Div(_BinOp):
     pass
 
 
-class Shr(LLLNode):
-    attrs = ("operand", "bits")
-
-
-class Shl(LLLNode):
-    attrs = ("operand", "bits")
-
-
-class Sha3_64(LLLNode):
-    attrs = ("slot", "value")
-
-
-class Assert(LLLNode):
-    attrs = ("condition",)
-
-
-class CodeLoad(LLLNode):
-    attrs = ("length",)
-
-
-class CodeCopy(LLLNode):
-    attrs = ("register", "pointer", "length")
-
-
-class CalldataLoad(LLLNode):
-    attrs = ("pointer",)
-
-
-class CalldataCopy(LLLNode):
-    attrs = ("register", "pointer", "length")
-
-
-class MLoad(LLLNode):
-    attrs = ("register",)
-
-
-class MStore(LLLNode):
-    attrs = ("register", "value")
-
-
-class SLoad(LLLNode):
-    attrs = ("slot",)
-
-
-class SStore(LLLNode):
-    attrs = ("slot", "value")
-
-
-class Goto(LLLNode):
-    attrs = ("label",)
-
-
-class Label(LLLNode):
-    attrs = ("name",)
-
-
-class JumpDest(_NullOp):
+@node_type
+class Exp(_BinOp):
     pass
 
 
+@node_type
+class Mod(_BinOp):
+    pass
+
+
+@node_type
+class Shr(LLLNode):
+    operand: Value
+    bits: Value
+
+
+@node_type
+class Shl(LLLNode):
+    operand: Value
+    bits: Value
+
+
+@node_type
+class Sha3(LLLNode):
+    input: Value
+
+
+@node_type
+class Sha3_32(LLLNode):
+    input: Value
+
+
+@node_type
+class Sha3_64(LLLNode):
+    input: Value
+    length: Value
+
+
+@node_type
+class Assert(_UnaryOp):
+    pass
+
+
+@node_type
+class CodeLoad(LLLNode):
+    length: Value
+
+
+@node_type
+class CodeCopy(LLLNode):
+    register: Value
+    pointer: Value
+    length: Value
+
+
+@node_type
+class CalldataLoad(LLLNode):
+    pointer: Value
+
+
+@node_type
+class CalldataCopy(LLLNode):
+    register: Value
+    pointer: Value
+    length: Value
+
+
+@node_type
+class MLoad(LLLNode):
+    register: Value
+
+
+@node_type
+class MStore(LLLNode):
+    register: Value
+    value: Value
+
+
+@node_type
+class SLoad(LLLNode):
+    slot: Value
+
+
+@node_type
+class SStore(LLLNode):
+    slot: Value
+    value: Value
+
+
+@node_type
+class Goto(LLLNode):
+    label: Var
+
+
+@node_type
+class Label(LLLNode):
+    label: Var
+
+
+@node_type
+class JumpDest(LLLNode):
+    pass
+
+
+@node_type
 class Jump(LLLNode):
-    attrs = ("offset",)
+    offset: Value
 
 
+@node_type
+class Repeat(LLLNode):
+    offset: Value
+
+
+@node_type
 class Dup1(LLLNode):
-    attrs = ("register",)
+    register: Value
 
 
+@node_type
 class Pop(_UnaryOp):
     pass
+
+
+@node_type
+class Log1(LLLNode):
+    register: Value
+
+
+@node_type
+class Log2(LLLNode):
+    register: Value
+
+
+@node_type
+class Log3(LLLNode):
+    register: Value
+
+
+@node_type
+class Log4(LLLNode):
+    register: Value
 
 
 # Dynamically load all ast classes in this module at runtime

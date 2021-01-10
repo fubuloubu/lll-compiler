@@ -17,32 +17,29 @@ from errors import CompilerError
 
 NodeAttr = Union[List["BaseNode"], "BaseNode"]
 
+node_type = dc.dataclass
 
-@dc.dataclass
+
+@node_type
 class BaseNode:
-    def __iter__(self,) -> Generator[Tuple[str, NodeAttr], None, None]:
+    def iter_attributes(self,) -> Generator[Tuple[str, NodeAttr], None, None]:
         for field in dc.fields(self):
             value = getattr(self, field.name)
             if isinstance(value, (list, BaseNode)):
                 yield field.name, value
 
+    @property
+    def node_type(self):
+        return self.__class__.__name__
+
 
 NodeClass = Type[BaseNode]
-
-
-def new_node_type(
-    base_class: NodeClass, node_type_name: str, *fields: Tuple[str, Type[NodeAttr]],
-) -> NodeClass:
-    bases = (base_class,)
-    return dc.make_dataclass(node_type_name, fields, bases=bases)
-
-
 FnType = TypeVar("FnType")
 ReturnType = TypeVar("ReturnType")
 Context = TypeVar("Context")
-VisitFn = Callable[[BaseNode, Context], None]
-MutateFn = Callable[[BaseNode, Context], Optional[BaseNode]]
-TransformFn = Callable[[BaseNode, Context], ReturnType]
+VisitFn = Callable[[BaseNode, Optional[Context]], None]
+MutateFn = Callable[[BaseNode, Optional[Context]], Optional[BaseNode]]
+TransformFn = Callable[[BaseNode, Optional[Context]], ReturnType]
 
 
 class BaseVisitor(Generic[FnType, Context]):
@@ -82,7 +79,7 @@ class NodeVisitor(BaseVisitor[VisitFn, Context]):
         functions must be pure, taking `NodeClass` as input and return nothing
     """
 
-    def visit(self, node: BaseNode, context: Context):
+    def visit(self, node: BaseNode, context: Optional[Context] = None):
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
@@ -93,11 +90,14 @@ class NodeVisitor(BaseVisitor[VisitFn, Context]):
         elif node.__class__ in self._functions.keys():
             self._functions[node_class](node, context)
 
+        elif self._node_base_class in self._functions.keys():
+            return self._functions[self._node_base_class](node, context)
+
         else:
             self._generic_visit(node, context)
 
-    def _generic_visit(self, node: BaseNode, context: Context):
-        for attr, value in node:
+    def _generic_visit(self, node: BaseNode, context: Optional[Context] = None):
+        for attr, value in node.iter_attributes():
             if isinstance(value, list):
                 for item in value:
                     if isinstance(item, self._node_base_class):
@@ -127,7 +127,9 @@ class NodeMutator(BaseVisitor[MutateFn, Context]):
         and return it with any necessary modifications
     """
 
-    def update(self, node: BaseNode, context: Context) -> Optional[BaseNode]:
+    def update(
+        self, node: BaseNode, context: Optional[Context] = None
+    ) -> Optional[BaseNode]:
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
@@ -138,11 +140,16 @@ class NodeMutator(BaseVisitor[MutateFn, Context]):
         elif node.__class__ in self._functions.keys():
             return self._functions[node_class](node, context)
 
+        elif self._node_base_class in self._functions.keys():
+            return self._functions[self._node_base_class](node, context)
+
         else:
             return self._generic_visit(node, context)
 
-    def _generic_visit(self, node: BaseNode, context: Context) -> Optional[BaseNode]:
-        for attr, old_value in node:
+    def _generic_visit(
+        self, node: BaseNode, context: Optional[Context] = None
+    ) -> Optional[BaseNode]:
+        for attr, old_value in node.iter_attributes():
             if isinstance(old_value, list):
                 new_values: List[BaseNode] = []
                 for old_item in old_value:
@@ -204,7 +211,9 @@ class NodeTransformer(
         There is no default (all nodes in tree must have transforms)
     """
 
-    def transform(self, node: BaseNode, context: Context) -> ReturnType:
+    def transform(
+        self, node: BaseNode, context: Optional[Context] = None
+    ) -> ReturnType:
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
@@ -214,6 +223,9 @@ class NodeTransformer(
 
         elif node.__class__ in self._functions.keys():
             return self._functions[node_class](node, context)
+
+        elif self._node_base_class in self._functions.keys():
+            return self._functions[self._node_base_class](node, context)
 
         else:
             raise CompilerError(f"Transform for '{node.__class__}' is not registered")

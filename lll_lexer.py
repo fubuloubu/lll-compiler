@@ -1,15 +1,21 @@
 from itertools import tee
 from sly.lex import Lexer as _Lexer
 
+from errors import LexerError
+
+# NOTE: Dummy function, to get `@_` to stop complaining
+def _(fn, *args):
+    raise
+
 
 class Lexer(_Lexer):
     tokens = {NAME, NUM, LPAREN, RPAREN}
     ignore = " \t,"
     ignore_newline = r"\n+"
-    ignore_annotation = r"<.*>"
-    ignore_comment = r"(\/\*.*\*\/|#.*)"
+    ignore_annotation = r"<.*?>"
+    ignore_comment = r"(\/\*.*\*\/|# .*)"
 
-    NAME = r"[#~a-zA-Z_][a-zA-Z0-9_\-\:]*"
+    NAME = r"[~a-zA-Z_][a-zA-Z0-9_:\-]*"
     LPAREN = r"[\[\(]"
     RPAREN = r"[\]\)]"
 
@@ -20,6 +26,10 @@ class Lexer(_Lexer):
         else:
             t.value = int(t.value)
         return t
+
+    def error(self, t):
+        print(f"Illegal character {t.value[0]}")
+        raise LexerError from super().error(t)
 
 
 def tokenize(text):

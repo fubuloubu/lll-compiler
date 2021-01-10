@@ -23,7 +23,7 @@ def compile_BinOp(node: lll_ast._BinOp, opcodes: Opcodes) -> Assembly:
     return [
         *compiler.transform(node.rhs, opcodes),
         *compiler.transform(node.lhs, opcodes),
-        opcodes[node.node_type.upper()],  # getattr would be better
+        opcodes[node.type.upper()],  # getattr would be better
     ]
 
 

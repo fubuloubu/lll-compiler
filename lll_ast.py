@@ -9,7 +9,7 @@ from node_utils import BaseNode, node_type
 @node_type
 class LLLNode(BaseNode):
     def __str__(self):
-        node_type = self.node_type.lower()
+        node_type = self.type.lower()
 
         def stringify_value(v):
             if isinstance(v, list):

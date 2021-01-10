@@ -1,4 +1,4 @@
-from sly import Parser as _Parser
+from sly import Parser as _Parser  # type: ignore
 
 from errors import ParserError
 from lll_ast import NODES, LLLNode
@@ -55,12 +55,10 @@ class Parser(_Parser):
                 try:
                     return NODES[p.NAME](list(p.args))
                 except TypeError as e:
-                    raise ParserError(
-                        f"Incorrect args for node type '{p.NAME}': {p.args}"
-                    ) from e
+                    raise ParserError(f"Incorrect args for node type '{p.NAME}': {p.args}") from e
 
-    @_("LPAREN NUM node RPAREN")
-    def node(self, p):
+    @_("LPAREN NUM node RPAREN")  # type: ignore
+    def node(self, p):  # noqa:  F811
         # NOTE: There's sometimes a weird scenario where it does:
         #       (if (...) (1 (goto _boolop_XXX:XX:0)) (...))
         # TODO: Figure out why this is and eliminate it
@@ -76,8 +74,8 @@ class Parser(_Parser):
             assert len(p.args) == 0, "Should never happen"
         return tuple(args)
 
-    @_("node { args }")
-    def args(self, p):
+    @_("node { args }")  # type: ignore
+    def args(self, p):  # noqa:  F811
         assert len(p.args) <= 1
         args = [p.node]
         if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
@@ -86,8 +84,8 @@ class Parser(_Parser):
             assert len(p.args) == 0, "Should never happen"
         return tuple(args)
 
-    @_("NAME { args }")
-    def args(self, p):
+    @_("NAME { args }")  # type: ignore
+    def args(self, p):  # noqa:  F811
         assert len(p.args) <= 1
         # NOTE: Handle NullOp nodes (assume NAME otherwise)
         args = [NODES[p.NAME]() if p.NAME in NODES else NODES["var"](p.NAME)]

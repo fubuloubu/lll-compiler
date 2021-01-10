@@ -424,8 +424,6 @@ class Log4(LLLNode):
 # Dynamically load all ast classes in this module at runtime
 NODES: Dict[str, LLLNode] = {
     node_type.lower(): node
-    for node_type, node in inspect.getmembers(
-        sys.modules[__name__], predicate=inspect.isclass
-    )
+    for node_type, node in inspect.getmembers(sys.modules[__name__], predicate=inspect.isclass)
     if not node_type.startswith("_") and node is not LLLNode
 }

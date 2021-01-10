@@ -38,7 +38,7 @@ FnType = TypeVar("FnType")
 ReturnType = TypeVar("ReturnType")
 Context = TypeVar("Context")
 VisitFn = Callable[[BaseNode, Optional[Context]], None]
-MutateFn = Callable[[BaseNode, Optional[Context]], Optional[BaseNode]]
+MutateFn = Callable[[BaseNode, Optional[Context]], Union[BaseNode, None]]
 TransformFn = Callable[[BaseNode, Optional[Context]], ReturnType]
 
 
@@ -129,7 +129,7 @@ class NodeMutator(BaseVisitor[MutateFn, Context]):
 
     def update(
         self, node: BaseNode, context: Optional[Context] = None
-    ) -> Optional[BaseNode]:
+    ) -> Union[BaseNode, None]:
         node_class = node.__class__
 
         if not isinstance(node, self._node_base_class):
@@ -148,7 +148,7 @@ class NodeMutator(BaseVisitor[MutateFn, Context]):
 
     def _generic_visit(
         self, node: BaseNode, context: Optional[Context] = None
-    ) -> Optional[BaseNode]:
+    ) -> Union[BaseNode, None]:
         for attr, old_value in node.iter_attributes():
             if isinstance(old_value, list):
                 new_values: List[BaseNode] = []

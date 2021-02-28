@@ -63,12 +63,12 @@ class StaticCall(LLLNode):
 
 @node_type
 class Set(LLLNode):
-    statements: List[LLLNode] = None
+    statements: List[LLLNode]
 
 
 @node_type
 class Seq(LLLNode):
-    statements: List[LLLNode] = None
+    statements: List[LLLNode]
 
 
 # NOTE: This node is sometimes present, it's an alias

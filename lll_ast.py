@@ -251,31 +251,35 @@ class If(LLLNode):
             )
 
 
-class Caller(LLLNode):
+class _NullOp(LLLNode):
     pass
 
 
-class Pass(LLLNode):
+class Caller(_NullOp):
     pass
 
 
-class Stop(LLLNode):
+class Pass(_NullOp):
     pass
 
 
-class Gas(LLLNode):
+class Stop(_NullOp):
     pass
 
 
-class CodeSize(LLLNode):
+class Gas(_NullOp):
     pass
 
 
-class CalldataSize(LLLNode):
+class CodeSize(_NullOp):
     pass
 
 
-class ReturndataSize(LLLNode):
+class CalldataSize(_NullOp):
+    pass
+
+
+class ReturndataSize(_NullOp):
     pass
 
 
@@ -493,7 +497,7 @@ class Label(LLLNode):
     label: Var
 
 
-class JumpDest(LLLNode):
+class JumpDest(_NullOp):
     pass
 
 

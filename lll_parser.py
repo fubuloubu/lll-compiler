@@ -1,9 +1,8 @@
 from sly import Parser as _Parser  # type: ignore
 
 from errors import ParserError
-from lll_ast import NODES, LLLNode
+import lll_ast
 from lll_lexer import Lexer, tokenize
-from node_utils import NodeTransformer
 
 
 # NOTE: Dummy function, to get `@_` to stop complaining
@@ -13,7 +12,7 @@ def _(fn, *args):
 
 class Parser(_Parser):
     def __init__(self, source: str):
-        self.source = source
+        self._source = source
         super().__init__()
 
     # NOTE: Uncomment if you want to see the parse table
@@ -34,7 +33,7 @@ class Parser(_Parser):
         ending_index = tok.index
         raise ParserError(
             f"Syntax error @ {starting_index}:{ending_index}:\n   "
-            + self.source[starting_index:ending_index]
+            + self._source[starting_index:ending_index]
             + "\n---^"
         )
         self.restart()
@@ -46,14 +45,14 @@ class Parser(_Parser):
 
     @_("LPAREN NAME [ args ] RPAREN")
     def node(self, p):
-        if p.NAME not in NODES:
+        if p.NAME not in lll_ast.NODES:
             raise ParserError(f"Unsupported node type '{p.NAME}'")
         else:
             try:
-                return NODES[p.NAME](*p.args)
+                return lll_ast.NODES[p.NAME](*p.args)
             except TypeError:
                 try:
-                    return NODES[p.NAME](list(p.args))
+                    return lll_ast.NODES[p.NAME](list(p.args))
                 except TypeError as e:
                     raise ParserError(f"Incorrect args for node type '{p.NAME}': {p.args}") from e
 
@@ -65,34 +64,26 @@ class Parser(_Parser):
         return p.node
 
     @_("NUM { args }")
+    @_("NAME { args }")
+    @_("node { args }")
     def args(self, p):
-        assert len(p.args) <= 1
-        args = [NODES["num"](p.NUM)]
-        if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
-            args.extend(p.args[0])
-        else:
-            assert len(p.args) == 0, "Should never happen"
-        return tuple(args)
+        assert len(p.args) <= 1, "Should never happen"
 
-    @_("node { args }")  # type: ignore
-    def args(self, p):  # noqa:  F811
-        assert len(p.args) <= 1
-        args = [p.node]
-        if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
-            args.extend(p.args[0])
-        else:
-            assert len(p.args) == 0, "Should never happen"
-        return tuple(args)
+        if isinstance(p[0], int):
+            args = [lll_ast.NODES["num"](p.NUM)]
 
-    @_("NAME { args }")  # type: ignore
-    def args(self, p):  # noqa:  F811
-        assert len(p.args) <= 1
-        # NOTE: Handle NullOp nodes (assume NAME otherwise)
-        args = [NODES[p.NAME]() if p.NAME in NODES else NODES["var"](p.NAME)]
+        elif isinstance(p[0], str):
+            # NOTE: Handle NullOp nodes (assume NAME otherwise)
+            args = [
+                lll_ast.NODES[p.NAME]() if p.NAME in lll_ast.NODES else lll_ast.NODES["var"](p.NAME)
+            ]
+
+        else:
+            args = [p.node]
+
         if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
             args.extend(p.args[0])
-        else:
-            assert len(p.args) == 0, "Should never happen"
+
         return tuple(args)
 
 
@@ -100,14 +91,6 @@ def parse(text):
     tokens = tokenize(text)
     ast = Parser(text).parse(tokens)
     return ast
-
-
-formatter: NodeTransformer = NodeTransformer(LLLNode)
-
-
-@formatter.register(LLLNode)
-def convert_node(node: LLLNode, _c: None):
-    return str(node)
 
 
 if __name__ == "__main__":
@@ -118,4 +101,4 @@ if __name__ == "__main__":
     if ast is None:
         print("Failed to compile")
     else:
-        print(formatter.transform(ast))
+        print(ast)

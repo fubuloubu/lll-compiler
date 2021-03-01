@@ -431,10 +431,11 @@ class Shl(LLLNode):
 
 class Sha3(LLLNode):
     input: Value
+    destination: Value
 
 
 class Sha3_32(LLLNode):
-    input: Value
+    destination: Value
 
 
 class Sha3_64(LLLNode):
@@ -501,7 +502,10 @@ class Jump(LLLNode):
 
 
 class Repeat(LLLNode):
-    offset: Value
+    register: Value
+    start: Value
+    loops: Value
+    statement: Value
 
 
 class Dup1(LLLNode):
@@ -512,20 +516,25 @@ class Pop(_UnaryOp):
     pass
 
 
-class Log1(LLLNode):
+class Log0(LLLNode):
     register: Value
+    length: Value
 
 
-class Log2(LLLNode):
-    register: Value
+class Log1(Log0):
+    topic0: Value
 
 
-class Log3(LLLNode):
-    register: Value
+class Log2(Log1):
+    topic1: Value
 
 
-class Log4(LLLNode):
-    register: Value
+class Log3(Log2):
+    topic2: Value
+
+
+class Log4(Log3):
+    topic3: Value
 
 
 # Dynamically load all ast classes in this module at runtime

@@ -47,14 +47,14 @@ class Parser(_Parser):
     def node(self, p):
         if p.NAME not in lll_ast.NODES:
             raise ParserError(f"Unsupported node type '{p.NAME}'")
+
+        node_class = lll_ast.NODES[p.NAME]
+
+        # NOTE: subclass of `Seq` is temporary until they're removed
+        if node_class == lll_ast.Seq or issubclass(node_class, lll_ast.Seq):
+            return node_class(list(p.args))
         else:
-            try:
-                return lll_ast.NODES[p.NAME](*p.args)
-            except TypeError:
-                try:
-                    return lll_ast.NODES[p.NAME](list(p.args))
-                except TypeError as e:
-                    raise ParserError(f"Incorrect args for node type '{p.NAME}': {p.args}") from e
+            return node_class(*p.args)
 
     @_("LPAREN NUM node RPAREN")  # type: ignore
     def node(self, p):  # noqa:  F811

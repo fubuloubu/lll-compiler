@@ -6,25 +6,33 @@ import sys
 from node_utils import BaseNode
 
 
+def _stringify_value(v):
+    if isinstance(v, list):
+        return " ".join(str(i) for i in v)
+    else:
+        return str(v)
+
+
 class LLLNode(BaseNode):
     def __str__(self):
         node_type = self.type.lower()
 
-        def stringify_value(v):
-            if isinstance(v, list):
-                return " ".join(str(i) for i in v)
-            else:
-                return str(v)
+        if len(list(self)) == 0:
+            return node_type
 
-        attrs = " ".join(stringify_value(v) for _, v in self.iter_attributes())
-        return f"({node_type} {attrs})" if attrs else node_type
+        else:
+            attrs = " " + " ".join(_stringify_value(v) for _, v in iter(self))
+            return "(" + node_type + attrs + ")"
 
 
 class Num(LLLNode):
     value: int
 
     def __str__(self):
-        return str(self.value)
+        if len(str(self.value)) > 8:
+            return hex(self.value)
+        else:
+            return str(self.value)
 
 
 class Var(LLLNode):
@@ -46,6 +54,54 @@ class Call(LLLNode):
     return_offset: Value
     return_length: Value
 
+    def __str__(self):
+        gas_limit_str = str(self.gas_limit)
+        address_str = str(self.address)
+        value_str = str(self.value)
+        args_offset_str = str(self.args_offset)
+        args_length_str = str(self.args_length)
+        return_offset_str = str(self.return_offset)
+        return_length_str = str(self.return_length)
+        call_str = (
+            "(call"
+            + " "
+            + gas_limit_str
+            + " "
+            + address_str
+            + " "
+            + value_str
+            + " "
+            + args_offset_str
+            + " "
+            + args_length_str
+            + " "
+            + return_offset_str
+            + " "
+            + return_length_str
+            + ")"
+        )
+        if len(call_str) < 80:
+            return call_str
+        else:
+            return (
+                "(call"
+                + "\n  "
+                + gas_limit_str.replace("\n", "\n  ")
+                + "\n  "
+                + address_str.replace("\n", "\n  ")
+                + "\n  "
+                + value_str.replace("\n", "\n  ")
+                + "\n  "
+                + args_offset_str.replace("\n", "\n  ")
+                + "\n  "
+                + args_length_str.replace("\n", "\n  ")
+                + "\n  "
+                + return_offset_str.replace("\n", "\n  ")
+                + "\n  "
+                + return_length_str.replace("\n", "\n  ")
+                + ")"
+            )
+
 
 class StaticCall(LLLNode):
     gas_limit: Value
@@ -55,10 +111,67 @@ class StaticCall(LLLNode):
     return_offset: Value
     return_length: Value
 
+    def __str__(self):
+        gas_limit_str = str(self.gas_limit)
+        address_str = str(self.address)
+        args_offset_str = str(self.args_offset)
+        args_length_str = str(self.args_length)
+        return_offset_str = str(self.return_offset)
+        return_length_str = str(self.return_length)
+        call_str = (
+            "(staticcall"
+            + " "
+            + gas_limit_str
+            + " "
+            + address_str
+            + " "
+            + args_offset_str
+            + " "
+            + args_length_str
+            + " "
+            + return_offset_str
+            + " "
+            + return_length_str
+            + ")"
+        )
+        if len(call_str) < 80:
+            return call_str
+        else:
+            return (
+                "(staticcall"
+                + "\n  "
+                + gas_limit_str.replace("\n", "\n  ")
+                + "\n  "
+                + address_str.replace("\n", "\n  ")
+                + "\n  "
+                + args_offset_str.replace("\n", "\n  ")
+                + "\n  "
+                + args_length_str.replace("\n", "\n  ")
+                + "\n  "
+                + return_offset_str.replace("\n", "\n  ")
+                + "\n  "
+                + return_length_str.replace("\n", "\n  ")
+                + ")"
+            )
 
 
 class Seq(LLLNode):
     statements: List[LLLNode]
+
+    def __str__(self):
+        if isinstance(self.statements, list):
+            statements = [str(n).replace("\n", "\n  ") for n in self.statements]
+
+        else:
+            statements = [str(self.statements).replace("\n", "\n  ")]
+
+        if len(" ".join(statements)) + len(self.type) < 80:
+            statements_str = " " + " ".join(statements)
+
+        else:
+            statements_str = "\n  " + "\n  ".join(statements)
+
+        return f"({self.type.lower()} {statements_str})"
 
 
 # NOTE: This node is sometimes present, it's an alias
@@ -84,6 +197,25 @@ class With(LLLNode):
     value: Value
     statement: Value
 
+    def __str__(self):
+        var_str = str(self.variable)
+        val_str = str(self.value)
+        stmt_str = str(self.statement)
+        with_str = f"(with {var_str} {val_str} {stmt_str})"
+        if len(with_str) < 80:
+            return with_str
+        else:
+            return (
+                "(with"
+                + "\n  "
+                + var_str
+                + " "
+                + val_str.replace("\n", "\n  ")
+                + "\n  "
+                + stmt_str.replace("\n", "\n  ")
+                + ")"
+            )
+
 
 class Return(LLLNode):
     pointer: Value
@@ -99,6 +231,24 @@ class If(LLLNode):
     condition: Value
     true: Value
     false: Optional[Value] = None
+
+    def __str__(self):
+        cond_str = str(self.condition)
+        true_str = str(self.true)
+        false_str = "" if self.false is None else str(self.false)
+        if_str = f"(if {cond_str} {true_str} {false_str})"
+        if len(if_str) < 80:
+            return if_str
+        else:
+            return (
+                "(if"
+                + "\n  "
+                + cond_str.replace("\n", "\n  ")
+                + "\n  "
+                + true_str.replace("\n", "\n  ")
+                + ("\n  " + false_str.replace("\n", "\n  ") if false_str else "")
+                + ")"
+            )
 
 
 class Caller(LLLNode):
@@ -132,6 +282,15 @@ class ReturndataSize(LLLNode):
 class _UnaryOp(LLLNode):
     operand: Value
 
+    def __str__(self):
+        val_str = str(self.operand)
+        node_type = self.type.lower()
+        op_str = f"({node_type} {val_str})"
+        if len(op_str) < 80:
+            return op_str
+        else:
+            return "(" + node_type + "\n  " + val_str.replace("\n", "\n  ") + ")"
+
 
 class Not(_UnaryOp):
     pass
@@ -164,6 +323,24 @@ class SelfDestruct(_UnaryOp):
 class _BinOp(LLLNode):
     lhs: Value
     rhs: Value
+
+    def __str__(self):
+        lhs_str = str(self.lhs)
+        rhs_str = str(self.rhs)
+        node_type = self.type.lower()
+        op_str = f"({node_type} {lhs_str} {rhs_str})"
+        if len(op_str) < 80:
+            return op_str
+        else:
+            return (
+                "("
+                + node_type
+                + "\n  "
+                + lhs_str.replace("\n", "\n  ")
+                + "\n  "
+                + rhs_str.replace("\n", "\n  ")
+                + ")"
+            )
 
 
 class Eq(_BinOp):

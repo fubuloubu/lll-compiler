@@ -24,9 +24,18 @@ class Parser(_Parser):
         num_parens = 1
         # Try to seek our way out of it
         while num_parens > 0:
-            tok = next(self.tokens)
+            try:
+                tok = next(self.tokens)
+            except StopIteration as e:
+                raise ParserError(
+                    f"Syntax error @ {starting_index}:\n   "
+                    + self._source[starting_index:]
+                    + "\n---^"
+                ) from e
+
             if tok.type == "LPAREN":
                 num_parens += 1
+
             elif tok.type == "RPAREN":
                 num_parens -= 1
 

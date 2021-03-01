@@ -52,7 +52,7 @@ class Parser(_Parser):
 
     start = "node"
 
-    @_("LPAREN NAME [ args ] RPAREN")
+    @_("LPAREN NAME { args } RPAREN")
     def node(self, p):
         if p.NAME not in lll_ast.NODES:
             raise ParserError(f"Unsupported node type '{p.NAME}'")
@@ -72,28 +72,22 @@ class Parser(_Parser):
         # TODO: Figure out why this is and eliminate it
         return p.node
 
-    @_("NUM { args }")
-    @_("NAME { args }")
-    @_("node { args }")
+    @_("NUM")
     def args(self, p):
-        assert len(p.args) <= 1, "Should never happen"
+        return lll_ast.NODES["num"](p.NUM)
 
-        if isinstance(p[0], int):
-            args = [lll_ast.NODES["num"](p.NUM)]
-
-        elif isinstance(p[0], str):
-            # NOTE: Handle NullOp nodes (assume NAME otherwise)
-            args = [
-                lll_ast.NODES[p.NAME]() if p.NAME in lll_ast.NODES else lll_ast.NODES["var"](p.NAME)
-            ]
+    @_("NAME")  # type: ignore
+    def args(self, p):  # noqa:  F811
+        # NOTE: Handle NullOp nodes (assume named variable otherwise)
+        if p.NAME in lll_ast.NODES:
+            return lll_ast.NODES[p.NAME]()
 
         else:
-            args = [p.node]
+            return lll_ast.NODES["var"](p.NAME)
 
-        if len(p.args) == 1:  # NOTE: sly automatically wraps `{ args }`
-            args.extend(p.args[0])
-
-        return tuple(args)
+    @_("node")  # type: ignore
+    def args(self, p):  # noqa:  F811
+        return p.node
 
 
 def parse(text):
